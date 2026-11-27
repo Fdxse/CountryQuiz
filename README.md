@@ -44,6 +44,20 @@ Then open http://localhost:8080.
    The `json` and `session` extensions are on by default; `zlib` (optional) gzips the map data.
 3. Open `http://<your-nas>/countryquiz/`.
 
+## Deploy from Windows
+
+`deploy.ps1` copies the files the site needs to `\\10.8.0.1\web\world` with robocopy
+(built into Windows, nothing to install). `tools/`, `README.md` and `.git` are not copied.
+
+```powershell
+.\deploy.ps1            # deploy
+.\deploy.ps1 -WhatIf    # only show what would change
+.\deploy.ps1 -Target \\10.8.0.1\web\world-test   # another folder
+```
+
+Or double-click `deploy.cmd`. The folders `assets/`, `src/` and `data/` are mirrored, so files
+removed locally are also removed on the NAS; nothing else in the target folder is touched.
+
 ## Updating the map data
 
 The data comes from [Natural Earth](https://www.naturalearthdata.com/) (1:50m Admin 0 countries, public domain).
