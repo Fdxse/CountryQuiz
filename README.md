@@ -10,31 +10,39 @@ and you either pick the right name from 5 nearby countries or type it (Swedish o
 
 ## Folder layout
 
+Everything lives in one folder, so the whole repository can be copied into a sub folder of
+the web root (e.g. `/web/countryquiz`).
+
 | Path | What it is |
 | --- | --- |
-| `public/` | The web root: `index.php` (page), `api.php` (JSON API), `assets/` (JS and CSS) |
+| `index.php` | The quiz page |
+| `api.php` | JSON API used by the page |
+| `assets/` | JavaScript and CSS |
 | `src/` | PHP classes: `CountryRepository`, `Quiz`, `NameMatcher` |
 | `data/countries.json` | Simplified country outlines, names and nearest countries (generated) |
-| `tools/build-data.php` | Regenerates `data/countries.json` from Natural Earth |
+| `tools/build-data.php` | Regenerates `data/countries.json` from Natural Earth (command line only) |
 
-Only `public/` should be reachable from the web.
+`src/`, `data/` and `tools/` are not meant to be opened in a browser. On Apache the
+`.htaccess` files block them. On nginx (Web Station's default) nothing in them is sensitive:
+`src/bootstrap.php` and `tools/build-data.php` answer 404 when opened directly, the class files
+only define classes, and the country data is public domain.
 
 ## Run locally
 
 ```bash
-php -S localhost:8080 -t public
+php -S localhost:8080
 ```
 
 Then open http://localhost:8080.
 
 ## Run on a Synology NAS (Web Station)
 
-1. Copy the whole repository to e.g. `/web/countryquiz` (via File Station, git or rsync).
-2. In **Web Station → Script Language Settings**, make sure a PHP 8.4 profile exists.
+1. Copy the whole repository to a sub folder of the web root, e.g. `/web/countryquiz`
+   (via File Station, git or rsync).
+2. In **Web Station → Script Language Settings**, make sure the PHP 8.4 profile is used for the
+   default web portal (or create a portal for the folder with that profile).
    The `json` and `session` extensions are on by default; `zlib` (optional) gzips the map data.
-3. In **Web Station → Web Service Portal**, create a portal (name-based or port-based) whose
-   document root is the `public` folder, e.g. `/web/countryquiz/public`, using the PHP 8.4 profile.
-4. Open the portal's address in a browser.
+3. Open `http://<your-nas>/countryquiz/`.
 
 ## Updating the map data
 

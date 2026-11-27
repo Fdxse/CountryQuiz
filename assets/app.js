@@ -81,6 +81,8 @@
 
     /** The question currently on screen (as returned by api.php). */
     let currentQuestion = null;
+    /** Increases with every question request, so late answers to old requests can be ignored. */
+    let latestQuestionRequest = 0;
     /** True once the current question has been answered. */
     let isAnswered = false;
 
@@ -238,14 +240,21 @@
         nextButton.hidden = true;
         mapElement.classList.remove('answered-correct', 'answered-wrong');
         isAnswered = false;
+        const requestNumber = ++latestQuestionRequest;
+        let question;
         try {
-            currentQuestion = await callApi('question');
+            question = await callApi('question');
         } catch (error) {
             feedbackElement.textContent = translate('load-error');
             feedbackElement.classList.add('wrong');
             nextButton.hidden = false;
             return;
         }
+        // A newer question was requested meanwhile (e.g. the area changed twice quickly).
+        if (requestNumber !== latestQuestionRequest) {
+            return;
+        }
+        currentQuestion = question;
         drawQuestion(currentQuestion);
         renderOptions(currentQuestion.options);
         renderScore(currentQuestion.score);
@@ -283,12 +292,13 @@
             return;
         }
         isAnswered = true;
+        answer.questionId = currentQuestion.questionId;
         let result;
         try {
             result = await callApi('answer', { method: 'POST', body: JSON.stringify(answer) });
         } catch (error) {
-            isAnswered = false;
-            feedbackElement.textContent = translate('load-error');
+            // Most likely the question expired (e.g. the session timed out): start a new one.
+            loadQuestion();
             return;
         }
         showResult(result);

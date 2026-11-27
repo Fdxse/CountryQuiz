@@ -10,7 +10,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../src/bootstrap.php';
+require __DIR__ . '/src/bootstrap.php';
 
 use CountryQuiz\CountryRepository;
 use CountryQuiz\Quiz;
@@ -63,7 +63,8 @@ try {
             if ($chosenCode === null && $typedName === null) {
                 respond(['error' => 'Send either "code" or "name"'], 400);
             }
-            respond($quiz->answer($chosenCode, $typedName, $language));
+            $questionId = isset($body['questionId']) && is_string($body['questionId']) ? $body['questionId'] : '';
+            respond($quiz->answer($questionId, $chosenCode, $typedName, $language));
 
         case 'names':
             respond(['names' => $quiz->allNames($language)]);

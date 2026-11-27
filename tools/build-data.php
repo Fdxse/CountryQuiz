@@ -16,6 +16,12 @@
 
 declare(strict_types=1);
 
+// This is a command line tool: refuse to run when someone opens it in a browser.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 // How many nearby countries to store per country (the quiz picks 4 of them as wrong answers).
 const NEARBY_COUNT = 12;
 

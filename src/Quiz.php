@@ -68,6 +68,9 @@ final class Quiz
         $country = $pool[random_int(0, count($pool) - 1)];
 
         $this->state['currentCode'] = $country['code'];
+        // Random id so an answer can be matched to the question it belongs to
+        // (two quick requests, e.g. when changing area, could otherwise get mixed up).
+        $this->state['questionId'] = bin2hex(random_bytes(8));
         $this->state['answered'] = false;
         $this->state['recentCodes'][] = $country['code'];
         $this->state['recentCodes'] = array_slice($this->state['recentCodes'], -self::RECENT_HISTORY_SIZE);
@@ -75,6 +78,7 @@ final class Quiz
         $view = self::viewAround($country['focus']);
 
         return [
+            'questionId' => $this->state['questionId'],
             'view' => $view,
             'target' => ['rings' => $this->repository->outlineForView($country, $view)],
             'surroundings' => $this->repository->countriesInView($view, $country['code']),
@@ -88,8 +92,11 @@ final class Quiz
      *
      * @return array<string, mixed>
      */
-    public function answer(?string $chosenCode, ?string $typedName, string $language): array
+    public function answer(string $questionId, ?string $chosenCode, ?string $typedName, string $language): array
     {
+        if ($questionId !== ($this->state['questionId'] ?? null)) {
+            throw new \RuntimeException('This question is no longer active.');
+        }
         $currentCode = $this->state['currentCode'];
         $country = $currentCode !== null ? $this->repository->find($currentCode) : null;
         if ($country === null) {

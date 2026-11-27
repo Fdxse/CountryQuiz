@@ -1,0 +1,5 @@
+# Apache: don't list folder contents and don't serve repository/config files.
+Options -Indexes
+<FilesMatch "^(\.git.*|README\.md)$">
+    Require all denied
+</FilesMatch>
