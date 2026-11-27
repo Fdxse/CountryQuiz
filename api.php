@@ -4,6 +4,7 @@
  *
  *   GET  api.php?action=question&area=europe&lang=sv   -> a new country to guess
  *   POST api.php?action=answer&lang=sv  {code} or {name} -> was it correct?
+ *   GET  api.php?action=zoom&questionId=..&zoom=4     -> the same question's map, zoomed out
  *   GET  api.php?action=names&lang=sv                   -> all country names (autocomplete)
  *   POST api.php?action=reset                           -> reset the score
  */
@@ -65,6 +66,13 @@ try {
             }
             $questionId = isset($body['questionId']) && is_string($body['questionId']) ? $body['questionId'] : '';
             respond($quiz->answer($questionId, $chosenCode, $typedName, $language));
+
+        case 'zoom':
+            $questionId = (string) ($_GET['questionId'] ?? '');
+            $zoomOutFactor = (int) ($_GET['zoom'] ?? 1);
+            // Reading the map does not change the session, so release the lock right away.
+            session_write_close();
+            respond($quiz->zoomedMap($questionId, $zoomOutFactor));
 
         case 'names':
             respond(['names' => $quiz->allNames($language)]);

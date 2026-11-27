@@ -173,6 +173,7 @@ input {
 /* ---------- Map ---------- */
 
 .map-frame {
+    position: relative;
     margin: 0;
     background: var(--sea);
     border: 1px solid var(--border);
@@ -187,6 +188,29 @@ input {
     aspect-ratio: var(--map-aspect, 1.6);
     max-height: 65vh;
     margin: 0 auto;
+}
+
+/* Zoom buttons in the top right corner of the map. Big enough to tap on a phone. */
+.zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.zoom-controls button {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 1.5rem;
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.zoom-controls button:disabled {
+    opacity: 0.4;
 }
 
 #map .sea {
