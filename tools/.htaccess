@@ -1,0 +1,3 @@
+# Not meant to be opened in a browser (only used by api.php or from the command line).
+# Works on Apache; on nginx these folders contain nothing harmful (see README).
+Require all denied

@@ -6,6 +6,12 @@
 
 declare(strict_types=1);
 
+// Only meant to be included by index.php / api.php, never opened directly in a browser.
+if (count(get_included_files()) === 1) {
+    http_response_code(404);
+    exit;
+}
+
 const COUNTRY_DATA_FILE = __DIR__ . '/../data/countries.json';
 
 spl_autoload_register(static function (string $className): void {
