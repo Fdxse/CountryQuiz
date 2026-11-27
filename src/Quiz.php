@@ -19,6 +19,9 @@ final class Quiz
     /** Smallest map view in degrees, so tiny countries (Vatican, Monaco) still show surroundings. */
     private const MIN_VIEW_SIZE_DEGREES = 8.0;
 
+    /** Allowed zoom-out factors: 1 = fitted to the country, 16 = sixteen times wider. */
+    public const ZOOM_LEVELS = [1, 2, 4, 8, 16];
+
     /** Extra space around the country, as a share of its size. */
     private const VIEW_PADDING_SHARE = 0.35;
 
@@ -84,6 +87,34 @@ final class Quiz
             'surroundings' => $this->repository->countriesInView($view, $country['code']),
             'options' => $this->buildOptions($country, $language),
             'score' => $this->score(),
+        ];
+    }
+
+    /**
+     * The map of the current question, zoomed out by a factor (1 = the normal view).
+     * Returns a wider view with the surrounding countries inside it.
+     *
+     * @return array<string, mixed>
+     */
+    public function zoomedMap(string $questionId, int $zoomOutFactor): array
+    {
+        if ($questionId !== ($this->state['questionId'] ?? null)) {
+            throw new \RuntimeException('This question is no longer active.');
+        }
+        if (!in_array($zoomOutFactor, self::ZOOM_LEVELS, true)) {
+            $zoomOutFactor = 1;
+        }
+        $country = $this->repository->find((string) $this->state['currentCode']);
+        if ($country === null) {
+            throw new \RuntimeException('There is no active question.');
+        }
+
+        $view = self::viewAround($country['focus'], $zoomOutFactor);
+        return [
+            'zoom' => $zoomOutFactor,
+            'view' => $view,
+            'target' => ['rings' => $this->repository->outlineForView($country, $view)],
+            'surroundings' => $this->repository->countriesInView($view, $country['code']),
         ];
     }
 
@@ -192,7 +223,7 @@ final class Quiz
      * @param array{float, float, float, float} $focus
      * @return array{float, float, float, float}
      */
-    private static function viewAround(array $focus): array
+    private static function viewAround(array $focus, int $zoomOutFactor = 1): array
     {
         [$minLongitude, $minLatitude, $maxLongitude, $maxLatitude] = $focus;
         $centerLongitude = ($minLongitude + $maxLongitude) / 2;
@@ -200,6 +231,10 @@ final class Quiz
 
         $halfWidth = max(($maxLongitude - $minLongitude) * (0.5 + self::VIEW_PADDING_SHARE), self::MIN_VIEW_SIZE_DEGREES / 2);
         $halfHeight = max(($maxLatitude - $minLatitude) * (0.5 + self::VIEW_PADDING_SHARE), self::MIN_VIEW_SIZE_DEGREES / 2);
+
+        // Zooming out widens the view around the same center, but never beyond the whole world.
+        $halfWidth = min(180.0, $halfWidth * $zoomOutFactor);
+        $halfHeight = min(85.0, $halfHeight * $zoomOutFactor);
 
         return [
             round($centerLongitude - $halfWidth, 3),

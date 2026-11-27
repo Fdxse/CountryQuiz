@@ -37,6 +37,8 @@
             'wrong-guess': 'That was {guess}. The right answer is {name}.',
             'other-language': 'In Swedish: {name}',
             'load-error': 'Could not load a question. Try again.',
+            'zoom-in': 'Zoom in',
+            'zoom-out': 'Zoom out',
         },
         sv: {
             'title': 'Vilket land är det här?',
@@ -65,6 +67,8 @@
             'wrong-guess': 'Det där var {guess}. Rätt svar är {name}.',
             'other-language': 'På engelska: {name}',
             'load-error': 'Kunde inte ladda en fråga. Försök igen.',
+            'zoom-in': 'Zooma in',
+            'zoom-out': 'Zooma ut',
         },
     };
 
@@ -85,6 +89,15 @@
     let latestQuestionRequest = 0;
     /** True once the current question has been answered. */
     let isAnswered = false;
+    /** The answer result, kept so the map can be redrawn (zoomed) with the answer still shown. */
+    let lastResult = null;
+
+    /** Zoom-out factors, same as Quiz::ZOOM_LEVELS on the server. */
+    const ZOOM_LEVELS = [1, 2, 4, 8, 16];
+    /** Index into ZOOM_LEVELS for the map on screen. */
+    let zoomIndex = 0;
+    /** Maps already loaded for the current question, keyed by zoom factor. */
+    let mapCache = {};
 
     /* ------------------------------------------------------------------ */
     /* Elements                                                            */
@@ -100,6 +113,8 @@
     const feedbackElement = document.getElementById('feedback');
     const nextButton = document.getElementById('next-button');
     const resetButton = document.getElementById('reset-button');
+    const zoomInButton = document.getElementById('zoom-in-button');
+    const zoomOutButton = document.getElementById('zoom-out-button');
 
     const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
@@ -224,7 +239,68 @@
         }
 
         applySurroundingsVisibility();
+        if (lastResult) {
+            highlightGuess(lastResult);
+        }
     }
+
+    /** Marks a wrongly guessed country in red on the map (if it is visible). */
+    function highlightGuess(result) {
+        if (!result.correct && result.guessedCode) {
+            const guessedPath = mapElement.querySelector('.country[data-code="' + result.guessedCode + '"]');
+            if (guessedPath) {
+                guessedPath.classList.add('guessed');
+            }
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Zooming                                                             */
+    /* ------------------------------------------------------------------ */
+
+    function updateZoomButtons() {
+        zoomInButton.disabled = zoomIndex === 0;
+        zoomOutButton.disabled = zoomIndex === ZOOM_LEVELS.length - 1;
+    }
+
+    /** Shows the current question at another zoom level, loading the wider map if needed. */
+    async function changeZoom(step) {
+        const newZoomIndex = Math.min(ZOOM_LEVELS.length - 1, Math.max(0, zoomIndex + step));
+        if (newZoomIndex === zoomIndex || !currentQuestion) {
+            return;
+        }
+        const zoomFactor = ZOOM_LEVELS[newZoomIndex];
+        const questionId = currentQuestion.questionId;
+
+        if (!mapCache[zoomFactor]) {
+            zoomInButton.disabled = zoomOutButton.disabled = true;
+            try {
+                const query = new URLSearchParams({ action: 'zoom', questionId: questionId, zoom: String(zoomFactor) });
+                const response = await fetch('api.php?' + query.toString(), { credentials: 'same-origin' });
+                if (!response.ok) {
+                    throw new Error('API error ' + response.status);
+                }
+                mapCache[zoomFactor] = await response.json();
+            } catch (error) {
+                updateZoomButtons();
+                return;
+            }
+            // The player moved on to a new question while the map was loading.
+            if (!currentQuestion || currentQuestion.questionId !== questionId) {
+                return;
+            }
+        }
+        zoomIndex = newZoomIndex;
+        drawQuestion(mapCache[zoomFactor]);
+        updateZoomButtons();
+    }
+
+    zoomInButton.addEventListener('click', function () {
+        changeZoom(-1);
+    });
+    zoomOutButton.addEventListener('click', function () {
+        changeZoom(1);
+    });
 
     function applySurroundingsVisibility() {
         mapElement.classList.toggle('hide-surroundings', !settings.showSurroundings);
@@ -255,6 +331,10 @@
             return;
         }
         currentQuestion = question;
+        lastResult = null;
+        zoomIndex = 0;
+        mapCache = { 1: question };
+        updateZoomButtons();
         drawQuestion(currentQuestion);
         renderOptions(currentQuestion.options);
         renderScore(currentQuestion.score);
@@ -317,13 +397,9 @@
         nameInput.disabled = true;
 
         // Highlight the wrongly guessed country on the map if it is visible
+        lastResult = result;
         mapElement.classList.add(result.correct ? 'answered-correct' : 'answered-wrong');
-        if (!result.correct && result.guessedCode) {
-            const guessedPath = mapElement.querySelector('.country[data-code="' + result.guessedCode + '"]');
-            if (guessedPath) {
-                guessedPath.classList.add('guessed');
-            }
-        }
+        highlightGuess(result);
 
         // Text feedback
         let message;
@@ -354,6 +430,10 @@
         document.documentElement.lang = settings.language;
         document.querySelectorAll('[data-text]').forEach(function (element) {
             element.textContent = translate(element.dataset.text);
+        });
+        document.querySelectorAll('[data-title]').forEach(function (element) {
+            element.title = translate(element.dataset.title);
+            element.setAttribute('aria-label', element.title);
         });
         document.querySelectorAll('[data-placeholder]').forEach(function (element) {
             element.placeholder = translate(element.dataset.placeholder);
@@ -434,9 +514,18 @@
         renderScore(result.score);
     });
 
-    // Keyboard shortcuts in pick mode: 1–5 picks an option, Enter goes to the next country.
+    // Keyboard shortcuts: 1–5 picks an option (pick mode), +/- zooms the map.
     document.addEventListener('keydown', function (event) {
         if (event.target === nameInput || event.target === areaSelect) {
+            return;
+        }
+        // "+" / "-" zoom the map in and out.
+        if (event.key === '+' || event.key === '=') {
+            changeZoom(-1);
+            return;
+        }
+        if (event.key === '-') {
+            changeZoom(1);
             return;
         }
         const optionNumber = Number(event.key);

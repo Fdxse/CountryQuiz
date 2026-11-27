@@ -56,6 +56,10 @@ declare(strict_types=1);
 
     <figure class="map-frame">
         <svg id="map" role="img" aria-label="Country outline" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="zoom-controls" role="group" aria-label="Zoom">
+            <button type="button" id="zoom-in-button" data-title="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+            <button type="button" id="zoom-out-button" data-title="zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+        </div>
     </figure>
 
     <section class="answer">
